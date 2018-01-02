@@ -26,8 +26,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
@@ -50,6 +53,7 @@ import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.sql.Array;
+import java.text.DateFormat;
 import java.text.Format;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -62,7 +66,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends Activity implements MediaPlayer.OnCompletionListener{
+public class MainActivity extends Activity implements MediaPlayer.OnCompletionListener,View.OnClickListener{
     private Cursor audioCursor;
     private MediaPlayer player = null;
     private ArrayList<String> songList = new ArrayList<String>();
@@ -78,6 +82,8 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     private JSONArray tempJson;
     private String key;
     private SharedPreferences pref;
+    private SharedPreferences locationPref;
+    private SharedPreferences devicePref;
     private SharedPreferences.Editor editor;
     private ArrayList<String> values = new ArrayList<>();
     private ConnectivityManager connectivityManager;
@@ -87,9 +93,16 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     private int songIndexToPlay = 0;
     private String runTime;
     private BroadcastReceiver mReceiver;
+    private Button btnSubmit;
+    private EditText edtLocation;
+    private EditText edtDeviceId;
+    private int timRawCount = 0;
+    private String lastSongTime=null;
+    private static final DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+    private int requestCount = 0;
     //private AlarmManagerBroadcastReceiver alarm;
-    //private String requestUrl = "http://soundsharingwebapplication20171220103351.azurewebsites.net/api/playlists";
-    private String requestUrl ="http://dev1.vocanic.net/shanaka/downloadmp3/jsontest.php";
+    private String requestUrl = "http://soundsharingwebapplication20171220103351.azurewebsites.net/api/playlists/GetBydate?date=";
+    //private String requestUrl ="http://dev1.vocanic.net/shanaka/downloadmp3/jsontest.php";
     Timer timer;
     TimerTask timerTask;
     final Handler handler = new Handler();
@@ -98,8 +111,23 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_listviewexampleactivity);
-
-        pref = getApplicationContext().getSharedPreferences("AppKeyVal", 0);
+        btnSubmit = (Button) findViewById(R.id.btnSubmit);
+        edtLocation = (EditText) findViewById(R.id.edtLocation);
+        edtDeviceId = (EditText) findViewById(R.id.edtId);
+        btnSubmit.setOnClickListener(this);
+        Date date = new Date();
+        requestUrl = requestUrl+sdf.format(date);
+        //pref = getApplicationContext().getSharedPreferences("AppKeyVal", 0);
+        locationPref = getApplicationContext().getSharedPreferences("locationPref", 0);
+        devicePref = getApplicationContext().getSharedPreferences("devicePref", 0);
+        String locationName = locationPref.getString("locationPref",null);
+        String deviceId     = devicePref.getString("devicePref",null);
+        if(locationName !=null){
+           edtLocation.setText(locationName);
+        }
+        if(deviceId != null){
+           edtDeviceId.setText(deviceId);
+        }
         connectivityManager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         if(connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
                 connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED) {
@@ -178,9 +206,9 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     }
 
     public boolean storeSharedPreferences(String keyValue){
-        editor = pref.edit();
+        /*editor = pref.edit();
         editor.putString("AppKeyVal", keyValue);
-        editor.commit();
+        editor.commit();*/
         return true;
     }
 
@@ -189,9 +217,9 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     }
 
     public boolean deleteSharedPreferences(){
-        editor = pref.edit();
+       /* editor = pref.edit();
         editor.remove("AppKeyVal");
-        editor.commit();
+        editor.commit();*/
         return true;
     }
 
@@ -267,7 +295,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                                 connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED) {
                             int currentMin = new Date().getMinutes();
                             System.out.println("System time is: "+currentMin);
-                            if(currentMin == 15){
+                            if(currentMin == 45){
                                 downloadJson();
                             }
 
@@ -283,8 +311,10 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     }
 
     public void downloadJson(){
-        GetPlaylistKey jsonTask = new GetPlaylistKey();
+        DownloadPlayListJson jsonTask = new DownloadPlayListJson();
         jsonTask.execute();
+        /*GetPlaylistKey jsonTask = new GetPlaylistKey();
+        jsonTask.execute();*/
     }
 
     public void processControll(){
@@ -308,6 +338,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
     }
 
     private boolean checkSongExist(){
+        requestCount++;
         downloadList.clear();
         ArrayList<String> valuesOfFounded = new ArrayList<String>();
         audioCursor = this.managedQuery(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null, null, null);
@@ -322,8 +353,9 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
             //songList.add(audioCursor.getString(audioCursor.getColumnIndex("_data")));
             //i++;
             if((audioCursor.getString(audioCursor.getColumnIndex("mime_type"))).compareTo("audio/mpeg") == 0){
-                //System.out.println(audioCursor.getString(audioCursor.getColumnIndex("title")));
+                System.out.println("All song here: "+audioCursor.getString(audioCursor.getColumnIndex("title")));
                 if(values.contains(audioCursor.getString(audioCursor.getColumnIndex("title")))){
+                    System.out.println("Values here: "+audioCursor.getString(audioCursor.getColumnIndex("title")));
                     if(list.contains(audioCursor.getString(audioCursor.getColumnIndex("title")))){
                     }else{
                         for(int j =0; j <songList.size();j++){
@@ -342,20 +374,27 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                 }
             }
         }
-        if(valuesOfFounded.size() >= values.size()){
+        if(valuesOfFounded.size() >= values.size() || requestCount == 4){
             return true;
         }else{
-            System.out.println("Songs not found Shana! "+values.size()+" "+valuesOfFounded.size());
             for(int j=0; j < values.size(); j++){
-                if(valuesOfFounded.indexOf(values.get(j).toString()) == -1){
-                    System.out.println("Index of array : "+values.get(j)+"  "+valuesOfFounded.indexOf(values.get(j).toString()));
+                if(valuesOfFounded.indexOf(values.get(j)) == -1){
+                    System.out.println("Index of array : "+values.get(j)+"  "+valuesOfFounded.indexOf(values.get(j).toString())+" Size of valuesOfFounded "+valuesOfFounded.size());
                     try {
-                        System.out.println("song: "+tempJson.getJSONObject(j).getString("DownloadUrl"));
-                        if (values.contains(tempJson.getJSONObject(j).getString("Title"))) {
-                            downloadRow = new HashMap<>();
-                            downloadRow.put("Title", tempJson.getJSONObject(j).getString("Title").toString());
-                            downloadRow.put("Url", (tempJson.getJSONObject(j).getString("DownloadUrl")).replace(" ", "%20"));
-                            downloadList.add(downloadRow);
+                        for (int k = 0; k < jsonArray.length(); k++) {
+                            // key = jsonArray.getJSONObject(i).getString("Id");
+                            tempJson = jsonArray.getJSONObject(k).getJSONArray("PlaylistSong");
+                            for (int l = 0; l < tempJson.length(); l++) {
+                                String tempTitle = tempJson.getJSONObject(l).getString("Title").toString();
+                                System.out.println("This song is not in downloads: "+tempTitle);
+                                if((values.get(j).toString()).equals(tempTitle)){
+                                    System.out.println("song: "+tempJson.getJSONObject(l).getString("DownloadUrl"));
+                                    downloadRow = new HashMap<>();
+                                    downloadRow.put("Title", tempJson.getJSONObject(l).getString("Title").toString());
+                                    downloadRow.put("Url", (tempJson.getJSONObject(l).getString("DownloadUrl")).replace(" ", "%20"));
+                                    downloadList.add(downloadRow);
+                                }
+                            }
                         }
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -407,6 +446,51 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
             musicPlay = false;
             isSongsPlaying = false;
         }
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()){
+            case R.id.btnSubmit:
+                String locationName = locationPref.getString("locationPref",null);
+                String DeviceId     = devicePref.getString("devicePref",null);
+                Toast.makeText(MainActivity.this,"Location "+edtLocation.getText().toString()+" and device Id"+edtDeviceId.getText().toString()+" saved successfully!",Toast.LENGTH_SHORT).show();
+                if(locationName == null){
+                        editor = locationPref.edit();
+                        editor.putString("locationPref", edtLocation.getText().toString());
+                        editor.commit();
+                }
+                else {
+                    editor = locationPref.edit();
+                    editor.remove("locationPref");
+                    editor.commit();
+                    editor = locationPref.edit();
+                    editor.putString("locationPref", edtLocation.getText().toString());
+                    editor.commit();
+                }
+                if(DeviceId == null){
+                editor = devicePref.edit();
+                editor.putString("devicePref", edtDeviceId.getText().toString());
+                editor.commit();
+                }
+                else{
+                    editor = devicePref.edit();
+                    editor.remove("devicePref");
+                    editor.commit();
+                    editor = devicePref.edit();
+                    editor.putString("devicePref", edtDeviceId.getText().toString());
+                    editor.commit();
+
+                }
+        }
+        InputMethodManager imm = (InputMethodManager)
+        getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(
+                edtDeviceId.getWindowToken(), 0);
+
+        getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(
+                edtLocation.getWindowToken(), 0);
     }
 
     private class StableArrayAdapter extends ArrayAdapter<String> {
@@ -465,10 +549,10 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                     // key = json.getString("Id");
                     jsonArray = json.getJSONArray("Playlists");
                     for (int i = 0; i < jsonArray.length(); i++) {
-                        Boolean inActive = jsonArray.getJSONObject(i).getBoolean("IsActive");
+                       /* Boolean inActive = jsonArray.getJSONObject(i).getBoolean("IsActive");
                         if(inActive){
                             key = jsonArray.getJSONObject(i).getString("Id");
-                        }
+                        }*/
                     }
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -512,6 +596,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
 
         @Override
         protected Boolean doInBackground(Void... voids) {
+            requestCount = 0;
             HttpURLConnection connection = null;
             BufferedReader reader = null;
 
@@ -543,26 +628,41 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
 
                     // key = json.getString("Id");
                     jsonArray = json.getJSONArray("Playlists");
+                    boolean foundDate = false;
+                    values.clear();
                     for (int i = 0; i < jsonArray.length(); i++) {
-                        Boolean inActive = jsonArray.getJSONObject(i).getBoolean("IsActive");
-                        if(inActive){
-                            key = jsonArray.getJSONObject(i).getString("Id");
+                           // key = jsonArray.getJSONObject(i).getString("Id");
                             tempJson = jsonArray.getJSONObject(i).getJSONArray("PlaylistSong");
-
-                            values.clear();
                             System.out.println("tempJson.getJSONObject(j) :"+tempJson.toString());
                             for (int j = 0; j < tempJson.length(); j++) {
                                 if(j == 0){
                                     runTime = (tempJson.getJSONObject(j).get("CumilativeDuration").toString());
                                 }
-                                timeRaw = new HashMap<>();
-                                timeRaw.put(j,(tempJson.getJSONObject(j).getString("CumilativeDuration")).toString());
-                                timeRawList.add(timeRaw);
-                                System.out.println(key+" Title of song is : "+tempJson.getJSONObject(j).getString("Title"));
-                                values.add(tempJson.getJSONObject(j).getString("Title"));
+                                if(lastSongTime == null){
+                                    timeRaw = new HashMap<>();
+                                    timeRaw.put(timRawCount,(tempJson.getJSONObject(j).getString("CumilativeDuration")).toString());
+                                    timeRawList.add(timeRaw);
+                                    System.out.println(" Title of song is : "+tempJson.getJSONObject(j).getString("Title"));
+                                    values.add(tempJson.getJSONObject(j).getString("Title"));
+                                }else{
+                                    if(lastSongTime == (tempJson.getJSONObject(j).getString("CumilativeDuration")).toString()){
+                                        foundDate = true;
+                                    }
+                                    if(foundDate && ((j+1) < tempJson.length())){
+                                        timeRaw = new HashMap<>();
+                                        timeRaw.put(timRawCount,(tempJson.getJSONObject(j).getString("CumilativeDuration")).toString());
+                                        timeRawList.add(timeRaw);
+                                        //System.out.println(key+" Title of song is : "+tempJson.getJSONObject(j).getString("Title"));
+                                        values.add(tempJson.getJSONObject(j).getString("Title"));
+                                    }
+                                }
+                                timRawCount++;
                             }
-                        }
                     }
+                    lastSongTime = timeRawList.get(timRawCount-1).get(timRawCount-1);
+                    timRawCount=0;
+                    System.out.println("last song time: "+lastSongTime+" "+values.size()+" "+timeRawList.size());
+
 
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -591,7 +691,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
         @Override
         protected void onPostExecute(Boolean aBoolean) {
             super.onPostExecute(aBoolean);
-            String keyValue = getSharedPreferences();
+           /* String keyValue = getSharedPreferences();
             System.out.println("keyValue :"+keyValue+" key: "+key);
             if(keyValue == null){
                 System.out.println("no share preferences!");
@@ -602,7 +702,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                 deleteSharedPreferences();
                 storeSharedPreferences(key);
                 System.out.println("new share preferences!");
-            }
+            }*/
             processControll();
         }
     }
@@ -617,10 +717,10 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                 Boolean isSDPresent = android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED);
                 Boolean isSDSupportedDevice = Environment.isExternalStorageRemovable();
 //this for new devices
-                File cacheDir = new File(android.os.Environment.getExternalStorageDirectory(),"Download");
+                //File cacheDir = new File(android.os.Environment.getExternalStorageDirectory(),"Download");
 
 //this is for old devices
-/*
+
                 File cacheDir;
                 if(isSDSupportedDevice && isSDPresent){
                     // yes SD-card is present
@@ -630,7 +730,7 @@ public class MainActivity extends Activity implements MediaPlayer.OnCompletionLi
                     // Sorry
                      cacheDir=new File(getApplicationContext().getFilesDir(),"");
                 }
-*/
+
                 if(!cacheDir.exists())
                     cacheDir.mkdirs();
                 for (int i=0; i<lists[0].size();i++){

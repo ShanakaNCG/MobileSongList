@@ -4,28 +4,67 @@
     android:layout_width="match_parent"
 android:layout_height="match_parent">
 
-    <ListView xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/listview"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/textView"
-        android:background="@drawable/bg">
-
-    </ListView>
 
     <TextView
         android:id="@+id/textView"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
+        android:background="@color/appColor"
         android:gravity="center"
         android:text="NOW PLAYING"
         android:textAllCaps="true"
-        android:background="@color/appColor"
+        android:layout_alignTop="@+id/scrollView2"
         android:textColor="@android:color/background_light"
         tools:text="NOW PLAYING" />
+<ScrollView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:id="@+id/scrollView2">
+
+</ScrollView>
+    <Button
+        android:id="@+id/btnSubmit"
+        style="@android:style/Widget.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:text="Submit" />
+
+    <EditText
+        android:id="@+id/edtLocation"
+        android:layout_width="275dp"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/edtId"
+        android:layout_alignEnd="@+id/edtId"
+        android:layout_alignRight="@+id/edtId"
+        android:text="Location Name" />
+
+    <EditText
+        android:id="@+id/edtId"
+        android:layout_width="275dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="50dp"
+        android:layout_marginRight="50dp"
+        android:layout_toLeftOf="@+id/btnSubmit"
+        android:layout_toStartOf="@+id/btnSubmit"
+        android:text="Device ID" />
+
+    <ListView
+        android:id="@+id/listview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/edtLocation"
+        android:layout_below="@+id/textView"
+        android:layout_toEndOf="@+id/scrollView2"
+        android:layout_toRightOf="@+id/scrollView2"
+        android:background="@drawable/bg"
+        android:scrollbars="none">
+
+    </ListView>
 </RelativeLayout>
